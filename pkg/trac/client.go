@@ -8,27 +8,32 @@ import (
 	"net/http"
 )
 
+// Client handles communications with Trac JSONRPC.
 type Client struct {
 	server     string // https://user:passwd@trac.example.com/login/jsonrpc
 	httpClient *http.Client
 
+	// RPC functions
 	Search *Search
 	System *System
 	Ticket *Ticket
 	Wiki   *Wiki
 }
 
+// Request is send to Trac JSONRPC via a HTTP POST request.
 type Request struct {
-	Method string   `json:"method"`
-	Params []string `json:"params"`
+	Method string        `json:"method"`
+	Params []interface{} `json:"params"`
 }
 
+// Response represents a response returned by Trac JSONRPC.
 type Response struct {
 	Error  RPCError        `json:"error,omitempty"`
-	Id     string          `json:"id,omitempty"`
+	ID     string          `json:"id,omitempty"`
 	Result json.RawMessage `json:"result,omitempty"`
 }
 
+// RPCError is the RPC error returned within the response.
 type RPCError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
@@ -39,6 +44,7 @@ func (r *RPCError) Error() string {
 	return fmt.Sprintf("%v(%d): %v", r.Name, r.Code, r.Message)
 }
 
+// NewClient returns a new Trac JSONRPC client.
 func NewClient(server string) *Client {
 	c := &Client{
 		server: server,
@@ -57,13 +63,16 @@ func NewClient(server string) *Client {
 
 // Query sends a Request and returns a Response.
 // Response.Result is unmarshaled by Client.Do
-func (c *Client) Query(function string, params ...string) (Response, error) {
+func (c *Client) Query(function string, params ...interface{}) (Response, error) {
 	var response = Response{}
 	query := Request{function, params}
 	body, err := json.Marshal(query)
 	if err != nil {
 		return response, err
 	}
+
+	fmt.Printf("%v\n", string(body))
+
 	res, err := http.Post(c.server, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return response, err
@@ -86,7 +95,7 @@ func (c *Client) Query(function string, params ...string) (Response, error) {
 
 // Do wraps Client.Query to unmarshal Response.Result in the value pointed to
 // by v
-func (c *Client) Do(function string, v interface{}, params ...string) (interface{}, error) {
+func (c *Client) Do(function string, v interface{}, params ...interface{}) (interface{}, error) {
 	r, err := c.Query(function, params...)
 	if err != nil {
 		return nil, err
