@@ -2,6 +2,7 @@ package trac
 
 import "fmt"
 
+// Search trac.
 type Search struct {
 	client *Client
 }
