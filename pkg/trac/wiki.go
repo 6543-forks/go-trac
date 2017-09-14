@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// CustomType is used for non-standard types.
 // JSON-RPC has no formalized type system, so a class-hint system is used for
 // input and output of non-standard types:
 //
@@ -16,6 +17,7 @@ type CustomType struct {
 	Kv [2]string `json:"__jsonclass__"`
 }
 
+// PageInfo represents page information.
 type PageInfo struct {
 	Name         string
 	Author       string
@@ -24,6 +26,7 @@ type PageInfo struct {
 	Comment      string
 }
 
+// UnmarshalJSON deserializes PageInfo.
 func (pi *PageInfo) UnmarshalJSON(in []byte) error {
 	type Alias PageInfo
 	tmp := struct {
@@ -43,12 +46,14 @@ func (pi *PageInfo) UnmarshalJSON(in []byte) error {
 	return nil
 }
 
+// Page represents a Wiki page.
 type Page struct {
 	Info PageInfo
 	Wiki string
 	HTML string
 }
 
+// Wiki represents WikiRPC.
 type Wiki struct {
 	client *Client
 }
@@ -94,7 +99,7 @@ func (w *Wiki) PageInfo(pagename string) (PageInfo, error) {
 	return pi, nil
 }
 
-// Returns the version of the Trac API.
+// RPCVersion returns the version of the Trac API.
 func (w *Wiki) RPCVersion() (int, error) {
 	var ver int
 	r, err := w.client.Query("wiki.getRPCVersionSupported")
@@ -112,7 +117,7 @@ func (w *Wiki) PageVersion(pagename string, version int) error {
 	return fmt.Errorf("Not implemented")
 }
 
-// RecentChange is not implemented.
+// RecentChanges is not implemented.
 func (w *Wiki) RecentChanges(since time.Time) error {
 	return fmt.Errorf("Not implemented")
 }
