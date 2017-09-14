@@ -13,6 +13,7 @@ import (
 
 const timeFormat = "2006-01-02T15:04:05"
 
+// TicketField represents ticket fields.
 type TicketField struct {
 	Label    string
 	Name     string
@@ -25,10 +26,11 @@ type TicketField struct {
 	Optional bool
 }
 
+// Ticket represents a Trac ticket.
 type Ticket struct {
 	client *Client
 
-	Id          int       `json:"id"`
+	ID          int       `json:"id"`
 	Time        time.Time `json:"time"`
 	Changetime  time.Time `json:"changetime"`
 	Owner       string    `json:"owner,omitempty"`
@@ -49,25 +51,29 @@ type Ticket struct {
 	Version     string    `json:"version,omitempty"`
 }
 
+// Component represents a ticket component.
 type Component struct {
-	Description string
-	Name        string
-	Owner       string
+	Description string `json:"description"`
+	Name        string `json:"name"`
+	Owner       string `json:"owner"`
 }
 
+// Milestone represents a ticket milestone.
 type Milestone struct {
-	Name        string
-	Description string
-	Due         int
-	Completed   int
+	Name        string `json:"nme"`
+	Description string `json:"description"`
+	Due         int    `json:"due"`
+	Completed   int    `json:"completed"`
 }
 
+// Version represents a ticket version.
 type Version struct {
-	Name        string
-	Description string
-	Time        time.Time
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Time        time.Time `json:"time"`
 }
 
+// UnmarshalJSON deserializes the version number.
 func (v *Version) UnmarshalJSON(in []byte) error {
 	type Alias Version
 	tmp := struct {
@@ -85,6 +91,22 @@ func (v *Version) UnmarshalJSON(in []byte) error {
 	}
 	v.Time = t
 	return nil
+}
+
+// MarshalJSON serializes Version.
+func (v *Version) MarshalJSON() ([]byte, error) {
+	tmptime := v.Time.Format(timeFormat)
+	type Alias Version
+	tmp := struct {
+		*Alias
+		Time CustomType `json:"time"`
+	}{
+		Alias: (*Alias)(v),
+		Time: CustomType{
+			[2]string{"datetime", tmptime},
+		},
+	}
+	return json.Marshal(tmp)
 }
 
 func (t *Ticket) setField(field string, value string) bool {
@@ -121,6 +143,7 @@ func (t *Ticket) setTimes(field string, values map[string]interface{}) {
 	}
 }
 
+// UnmarshalJSON deserialized a ticket.
 func (t *Ticket) UnmarshalJSON(in []byte) error {
 	var data []interface{}
 	if err := json.Unmarshal(in, &data); err != nil {
@@ -130,7 +153,7 @@ func (t *Ticket) UnmarshalJSON(in []byte) error {
 	for _, i := range data {
 		switch v := i.(type) {
 		case float64:
-			t.Id = int(v)
+			t.ID = int(v)
 		case map[string]interface{}:
 			for kk, ii := range v {
 				kkt := strings.Title(kk)
@@ -174,6 +197,7 @@ func (t *Ticket) Get(number int) (Ticket, error) {
 	return tkt, nil
 }
 
+// Attachment represents a ticket attachment.
 type Attachment struct {
 	Filename    string
 	Description string
@@ -183,6 +207,7 @@ type Attachment struct {
 	Binary      string // base64 encoded
 }
 
+// UnmarshalJSON deserializes an attachment.
 func (a *Attachment) UnmarshalJSON(in []byte) error {
 	data := []interface{}{
 		&a.Filename,
@@ -337,12 +362,18 @@ func (t *Ticket) DelComponent(name string) (int, error) {
 	return r, err
 }
 
-func (t *Ticket) AddComponent(name string, attrs []string) error {
-	return fmt.Errorf("Not implemented")
+// AddComponent creates a new ticket component.
+func (t *Ticket) AddComponent(name string, c *Component) (int, error) {
+	var r int
+	_, err := t.client.Do("ticket.component.create", &r, name, c)
+	return r, err
 }
 
-func (t *Ticket) SetComponent(name string, attrs []string) error {
-	return fmt.Errorf("Not implemented")
+// SetComponent updates and existing component.
+func (t *Ticket) SetComponent(name string, c *Component) (int, error) {
+	var r int
+	_, err := t.client.Do("ticket.component.update", &r, name, c)
+	return r, err
 }
 
 // Milestones returns a list of all ticket milestones names.
@@ -350,8 +381,8 @@ func (t *Ticket) Milestones() ([]string, error) {
 	return t.client.All("ticket.milestone.getAll")
 }
 
-// MilestoneId returns the ID of the milestone `name`.
-func (t *Ticket) MilestoneId(name string) (Milestone, error) {
+// MilestoneID returns the ID of the milestone `name`.
+func (t *Ticket) MilestoneID(name string) (Milestone, error) {
 	var m Milestone
 	_, err := t.client.Do("ticket.milestone.get", &m, name)
 	return m, err
@@ -364,12 +395,18 @@ func (t *Ticket) DelMilestone(name string) (int, error) {
 	return r, err
 }
 
-func (t *Ticket) AddMilestone(name string, attrs []string) error {
-	return fmt.Errorf("Not implemented")
+// AddMilestone creates a new milestone.
+func (t *Ticket) AddMilestone(name string, m *Milestone) (int, error) {
+	var r int
+	_, err := t.client.Do("ticket.milestone.create", &r, name, m)
+	return r, err
 }
 
-func (t *Ticket) SetMilestone(name string, attrs []string) error {
-	return fmt.Errorf("Not implemented")
+// SetMilestone updates ticket priority with the given Milestone.
+func (t *Ticket) SetMilestone(name string, m *Milestone) (int, error) {
+	var r int
+	_, err := t.client.Do("ticket.milestone.update", &r, name, m)
+	return r, err
 }
 
 // Priorities returns a list of all ticket priority names.
@@ -377,8 +414,8 @@ func (t *Ticket) Priorities() ([]string, error) {
 	return t.client.All("ticket.priority.getAll")
 }
 
-// PriorityId returns the ID of the priority `name`.
-func (t *Ticket) PriorityId(name string) (int, error) {
+// PriorityID returns the ID of the priority `name`.
+func (t *Ticket) PriorityID(name string) (int, error) {
 	var p string
 	_, err := t.client.Do("ticket.priority.get", &p, name)
 	i, err := strconv.Atoi(p)
@@ -388,9 +425,11 @@ func (t *Ticket) PriorityId(name string) (int, error) {
 	return i, err
 }
 
-// AddPriority is not implemented.
-func (t *Ticket) AddPriority(name, value string) error {
-	return fmt.Errorf("Not implemented")
+// AddPriority creates a new ticket priority with the given value
+func (t *Ticket) AddPriority(name string, value int) (int, error) {
+	var r int
+	_, err := t.client.Do("ticket.priority.create", &r, name, value)
+	return r, err
 }
 
 // DelPriority deletes a priority by name.
@@ -400,9 +439,11 @@ func (t *Ticket) DelPriority(name string) (int, error) {
 	return r, err
 }
 
-// SetPriority is not implemented.
-func (t *Ticket) SetPriority(name string, attrs []string) error {
-	return fmt.Errorf("Not implemented")
+// SetPriority updates ticket priority with the given value.
+func (t *Ticket) SetPriority(name string, value int) (int, error) {
+	var r int
+	_, err := t.client.Do("ticket.priority.update", &r, name, value)
+	return r, err
 }
 
 // Resolutions returns a list of all ticket resolution names.
@@ -410,8 +451,8 @@ func (t *Ticket) Resolutions() ([]string, error) {
 	return t.client.All("ticket.resolution.getAll")
 }
 
-// ResolutionId returns the ID of the resolution `name`.
-func (t *Ticket) ResolutionId(name string) (int, error) {
+// ResolutionID returns the ID of the resolution `name`.
+func (t *Ticket) ResolutionID(name string) (int, error) {
 	var r string
 	_, err := t.client.Do("ticket.resolution.get", &r, name)
 	i, err := strconv.Atoi(r)
@@ -421,8 +462,11 @@ func (t *Ticket) ResolutionId(name string) (int, error) {
 	return i, err
 }
 
-func (t *Ticket) AddResolution(name, value string) error {
-	return fmt.Errorf("Not implemented")
+// AddResolution create a new ticket resolution with the given value.
+func (t *Ticket) AddResolution(name string, value int) (int, error) {
+	var r int
+	_, err := t.client.Do("ticket.resolution.create", &r, name, value)
+	return r, err
 }
 
 // DelResolution deletes a resolution by name.
@@ -432,9 +476,11 @@ func (t *Ticket) DelResolution(name string) (int, error) {
 	return r, err
 }
 
-// SetResolution is not implemented.
-func (t *Ticket) SetResolution(name string, attrs []string) error {
-	return fmt.Errorf("Not implemented")
+// SetResolution update ticket resolution with the given value.
+func (t *Ticket) SetResolution(name string, value int) (int, error) {
+	var r int
+	_, err := t.client.Do("ticket.resolution.update", &r, name, value)
+	return r, err
 }
 
 // Severities returns a list of all ticket severity names.
@@ -442,8 +488,8 @@ func (t *Ticket) Severities() ([]string, error) {
 	return t.client.All("ticket.severity.getAll")
 }
 
-// Severity returns the ID of the severity `name`.
-func (t *Ticket) SeverityId(name string) (int, error) {
+// SeverityID returns the ID of the severity `name`.
+func (t *Ticket) SeverityID(name string) (int, error) {
 	var s string
 	_, err := t.client.Do("ticket.severity.get", &s, name)
 	i, err := strconv.Atoi(s)
@@ -453,9 +499,11 @@ func (t *Ticket) SeverityId(name string) (int, error) {
 	return i, err
 }
 
-// AddSeverity is not implemented.
-func (t *Ticket) AddSeverity(name, value string) error {
-	return fmt.Errorf("Not implemented")
+// AddSeverity creates a new ticket severity with the given value.
+func (t *Ticket) AddSeverity(name string, value int) (int, error) {
+	var r int
+	_, err := t.client.Do("ticket.severity.create", &r, name, value)
+	return r, err
 }
 
 // DelSeverity deletes a severity by name.
@@ -465,9 +513,11 @@ func (t *Ticket) DelSeverity(name string) (int, error) {
 	return r, err
 }
 
-// SetSeverity is not implemented.
-func (t *Ticket) SetSeverity(name string, attrs []string) error {
-	return fmt.Errorf("Not implemented")
+// SetSeverity updates ticket severity with the given value.
+func (t *Ticket) SetSeverity(name string, value int) (int, error) {
+	var r int
+	_, err := t.client.Do("ticket.severity.update", &r, name, value)
+	return r, err
 }
 
 // Statuses returns all ticket states described by active workflow.
@@ -480,8 +530,8 @@ func (t *Ticket) Types() ([]string, error) {
 	return t.client.All("ticket.type.getAll")
 }
 
-// TypeId returns the ID of the type `name`.
-func (t *Ticket) TypeId(name string) (int, error) {
+// TypeID returns the ID of the type `name`.
+func (t *Ticket) TypeID(name string) (int, error) {
 	var s string
 	_, err := t.client.Do("ticket.type.get", &s, name)
 	i, err := strconv.Atoi(s)
@@ -491,9 +541,11 @@ func (t *Ticket) TypeId(name string) (int, error) {
 	return i, err
 }
 
-// AddType is not implemented.
-func (t *Ticket) AddType(name, value string) error {
-	return fmt.Errorf("Not implemented")
+// AddType create a new ticket type with the given value.
+func (t *Ticket) AddType(name string, value int) (int, error) {
+	var r int
+	_, err := t.client.Do("ticket.type.create", &r, name, value)
+	return r, err
 }
 
 // DelType deletes a type by name.
@@ -503,9 +555,11 @@ func (t *Ticket) DelType(name string) (int, error) {
 	return r, err
 }
 
-// SetType is not implemented.
-func (t *Ticket) SetType(name string, attrs []string) error {
-	return fmt.Errorf("Not implemented")
+// SetType updates ticket type with the given value.
+func (t *Ticket) SetType(name string, value int) (int, error) {
+	var r int
+	_, err := t.client.Do("ticket.type.update", &r, name, value)
+	return r, err
 }
 
 // Versions returns a list of all ticket version names.
@@ -527,12 +581,16 @@ func (t *Ticket) DelVersion(name string) (int, error) {
 	return r, err
 }
 
-// AddVersion is not implemented.
-func (t *Ticket) AddVersion(name string, attrs []string) error {
-	return fmt.Errorf("Not implemented")
+// AddVersion creates a new ticket version with the given Version.
+func (t *Ticket) AddVersion(name string, v *Version) (int, error) {
+	var r int
+	_, err := t.client.Do("ticket.version.create", &r, name, v)
+	return r, err
 }
 
-// SetVersion is not implemented.
-func (t *Ticket) SetVersion(name string, attrs []string) error {
-	return fmt.Errorf("Not implemented")
+// SetVersion update ticket version with the given Version.
+func (t *Ticket) SetVersion(name string, v *Version) (int, error) {
+	var r int
+	_, err := t.client.Do("ticket.version.update", &r, name, v)
+	return r, err
 }
