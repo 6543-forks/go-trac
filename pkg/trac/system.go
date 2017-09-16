@@ -2,7 +2,6 @@ package trac
 
 import (
 	"encoding/json"
-	"fmt"
 )
 
 // APIVersion represents the remote version.
@@ -67,7 +66,12 @@ func (s *System) MethodHelp(method string) (string, error) {
 	return m, nil
 }
 
-// MethodSignature is not implemented.
+// MethodSignature takes one parameter, the name of a method implemented by the
+// RPC server. It returns an slice of possible signatures for this method. The
+// first of these types is the return type of the method, the rest are
+// parameters.
 func (s *System) MethodSignature(method string) ([]string, error) {
-	return nil, fmt.Errorf("Not implemented")
+	var r []string
+	_, err := s.client.Do("system.methodSignature", &r, method)
+	return r, err
 }
