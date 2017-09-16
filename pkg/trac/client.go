@@ -71,8 +71,6 @@ func (c *Client) Query(function string, params ...interface{}) (Response, error)
 		return response, err
 	}
 
-	fmt.Printf("%v\n", string(body))
-
 	res, err := http.Post(c.server, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return response, err
