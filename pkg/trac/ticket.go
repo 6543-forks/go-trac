@@ -32,9 +32,9 @@ type Ticket struct {
 
 	ID          int       `json:"id"`
 	Time        time.Time `json:"time"`
-	Changetime  time.Time `json:"changetime"`
+	Changetime  time.Time `json:"changetime,omitempty"`
 	Owner       string    `json:"owner,omitempty"`
-	Reporter    string    `json:"reporter"`
+	Reporter    string    `json:"reporter,omitempty"`
 	Summary     string    `json:"summary,omitempty"`
 	Description string    `json:"decription,omitempty"`
 	Project     string    `json:"project,omitempty"`
@@ -167,6 +167,29 @@ func (t *Ticket) UnmarshalJSON(in []byte) error {
 		}
 	}
 	return nil
+}
+
+// Attrs creates the map of attributes or a ticket.
+func (t *Ticket) Attrs() map[string]interface{} {
+	attrs := make(map[string]interface{})
+	r := reflect.ValueOf(t).Elem()
+	typeOfT := r.Type()
+
+	for i := 0; i < r.NumField(); i++ {
+		f := r.Field(i)
+		fname := strings.ToLower(typeOfT.Field(i).Name)
+		switch fname {
+		case "client", "id", "summary", "description":
+			continue
+		default:
+			v := fmt.Sprintf("%v", f.Interface())
+			if v == "" {
+				continue
+			}
+			attrs[fname] = f.Interface()
+		}
+	}
+	return attrs
 }
 
 // GetIds returns all open tickets IDs.
@@ -321,9 +344,12 @@ func (t *Ticket) Actions(ticket int) ([]string, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
 
-// Create is not implemented.
-func (t *Ticket) Create() error {
-	return fmt.Errorf("Not implemented")
+// Add create a new ticket, returning the ticket ID. Overriding 'when' requires
+// admin permission.
+func (t *Ticket) Add(tt *Ticket) (int, error) {
+	var r int
+	_, err := t.client.Do("ticket.create", &r, tt.Summary, tt.Description, tt.Attrs())
+	return r, err
 }
 
 // Update is not implemented.
