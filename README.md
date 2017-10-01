@@ -9,7 +9,7 @@ import "github.com/ics/go-trac/pkg/trac"
 
 tracURL := "https://user:pass@trac.example.com/login/jsonrpc"
 
-trc := trac.NewClient(tracURL)
+trc := trac.NewClient(tracURL, nil)
 t, err := trc.Ticket.Get(1)
 if err != nil {
     log.Fatal(err)

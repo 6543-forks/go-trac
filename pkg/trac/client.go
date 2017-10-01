@@ -45,12 +45,13 @@ func (r *RPCError) Error() string {
 }
 
 // NewClient returns a new Trac JSONRPC client.
-func NewClient(server string) *Client {
-	c := &Client{
-		server: server,
+func NewClient(server string, httpClient *http.Client) *Client {
+	if httpClient == nil {
+		httpClient = http.DefaultClient
 	}
-	if c.httpClient == nil {
-		c.httpClient = http.DefaultClient
+	c := &Client{
+		server:     server,
+		httpClient: httpClient,
 	}
 
 	// RPC exported functions
@@ -71,7 +72,7 @@ func (c *Client) Query(function string, params ...interface{}) (Response, error)
 		return response, err
 	}
 
-	res, err := http.Post(c.server, "application/json", bytes.NewReader(body))
+	res, err := c.httpClient.Post(c.server, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return response, err
 	}
